@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OTP Verification Component</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background: linear-gradient(135deg, #8e44ad, #f39c12);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      height: 100vh;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .otp-container {
+      background-color: #1e1e2f;
+      padding: 2.5rem 3rem;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 6px 20px rgb(0 0 0 / 0.4);
+      color: #eee;
+      text-align: center;
+    }
+    .otp-title {
+      font-size: 1.33rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      margin-bottom: 0.3rem;
+    }
+    .otp-subtitle {
+      font-size: 0.75rem;
+      color: #babbcc;
+      margin-bottom: 2rem;
+      line-height: 1.35;
+    }
+    .otp-inputs {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 1.8rem;
+    }
+    .otp-input {
+      width: 52px;
+      height: 52px;
+      font-size: 1.7rem;
+      font-weight: 600;
+      background-color: #2a2a3d;
+      border: 2.5px solid #3b3b52;
+      border-radius: 8px;
+      color: #eee;
+      text-align: center;
+      transition: border-color 0.3s ease;
+    }
+    .otp-input:focus {
+      outline: none;
+      border-color: #7f5af0;
+      background-color: #3b3b52;
+    }
+    .otp-input.valid {
+      border-color: #27ae60 !important;
+      background-color: #1b381b;
+      color: #b8e994;
+    }
+    .otp-input.invalid {
+      border-color: #e74c3c !important;
+      background-color: #3a1717;
+      color: #f1948a;
+    }
+    .verify-btn {
+      background-color: #5d50f9;
+      color: white;
+      font-weight: 700;
+      font-size: 1rem;
+      padding: 0.55rem 0;
+      width: 100%;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.3s ease;
+    }
+    .verify-btn:hover:not(:disabled) {
+      background-color: #483cda;
+    }
+    .verify-btn:disabled {
+      background-color: #777999;
+      cursor: not-allowed;
+    }
+    .message {
+      margin-top: 1.2rem;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    .message.success {
+      color: #27ae60;
+    }
+    .message.error {
+      color: #e74c3c;
+    }
+  </style>
+</head>
+<body>
+  <div class="otp-container" role="main" aria-labelledby="otp-title">
+    <h1 id="otp-title" class="otp-title">Verify your email address</h1>
+    <p class="otp-subtitle">A four-digit code has been sent to your email. Please enter the code below to verify your email address.</p>
+    <form id="otp-form" autocomplete="off" aria-describedby="instruction-text" novalidate>
+      <div class="otp-inputs" role="group" aria-label="Enter 4 digit OTP">
+        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-input" aria-label="OTP digit 1" />
+        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-input" aria-label="OTP digit 2" />
+        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-input" aria-label="OTP digit 3" />
+        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="1" class="otp-input" aria-label="OTP digit 4" />
+      </div>
+      <button type="submit" class="verify-btn" aria-live="polite" aria-label="Verify OTP" disabled>Verify OTP</button>
+      <p id="otp-message" class="message" role="alert" aria-live="assertive"></p>
+    </form>
+  </div>
+
+<script>
+  (() => {
+    const otpInputs = document.querySelectorAll('.otp-input');
+    const verifyButton = document.querySelector('.verify-btn');
+    const otpForm = document.getElementById('otp-form');
+    const messageElem = document.getElementById('otp-message');
+
+    // Hardcoded valid OTP for demonstration
+    const VALID_OTP = '1230';
+
+    // Focus next input after entering a digit, or move back on backspace
+    otpInputs.forEach((input, idx) => {
+      input.addEventListener('input', (e) => {
+        const value = e.target.value;
+        if (!/^\d$/.test(value)) {
+          e.target.value = ''; // Only accept single digit numeric input
+        } else if (idx < otpInputs.length - 1) {
+          otpInputs[idx + 1].focus();
+        }
+        checkAllFilled();
+      });
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !e.target.value && idx > 0) {
+          otpInputs[idx - 1].focus();
+        }
+      });
+
+      input.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const pasteData = (e.clipboardData || window.clipboardData).getData('text').trim();
+        const digits = pasteData.replace(/\D/g, '').split('').slice(0, otpInputs.length);
+        digits.forEach((d, i) => otpInputs[i].value = d);
+        const lastFilledIndex = digits.length - 1;
+        if(lastFilledIndex >= 0) {
+          otpInputs[lastFilledIndex].focus();
+        }
+        checkAllFilled();
+      });
+    });
+
+    // Enable verify button only when all inputs filled with digits
+    function checkAllFilled() {
+      const allFilled = Array.from(otpInputs).every(input => input.value.match(/^\d$/));
+      verifyButton.disabled = !allFilled;
+      clearValidation();
+      messageElem.textContent = '';
+      messageElem.classList.remove('success', 'error');
+    }
+
+    // Clear all validation styling
+    function clearValidation() {
+      otpInputs.forEach(input => {
+        input.classList.remove('valid', 'invalid');
+      });
+    }
+
+    otpForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const enteredOtp = Array.from(otpInputs).map(i => i.value).join('');
+      if (enteredOtp === VALID_OTP) {
+        otpInputs.forEach(input => input.classList.add('valid'));
+        messageElem.textContent = 'OTP Verified Successfully!';
+        messageElem.classList.remove('error');
+        messageElem.classList.add('success');
+      } else {
+        otpInputs.forEach(input => input.classList.add('invalid'));
+        messageElem.textContent = 'Invalid OTP. Please try again.';
+        messageElem.classList.remove('success');
+        messageElem.classList.add('error');
+        alert('Invalid OTP');
+      }
+    });
+  })();
+</script>
+</body>
+</html>
+
